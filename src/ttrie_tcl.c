@@ -111,7 +111,11 @@ static int create_command(void *data, Tcl_Interp *interp, Tcl_Size objc, Tcl_Obj
 }
 
 DLLEXPORT int Ttrie_Init(Tcl_Interp *interp) {
-    if (!Tcl_InitStubs(interp, TCL_VERSION, 0)) { return TCL_ERROR; }
+#if TCL_MAJOR_VERSION >= 9
+    if (!Tcl_InitStubs(interp, "9.0", 0)) { return TCL_ERROR; }
+#else
+    if (!Tcl_InitStubs(interp, "8.6", 0)) { return TCL_ERROR; }
+#endif
     if (!Tcl_FindNamespace(interp, "::ttrie", NULL, 0) &&
         !Tcl_CreateNamespace(interp, "::ttrie", NULL, NULL)) { return TCL_ERROR; }
     Tcl_CreateObjCommand(interp, "::ttrie::create", create_command, NULL, NULL);

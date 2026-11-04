@@ -1,5 +1,11 @@
 # Release notes
 
+## 0.1.1 — 2026-11-04
+
+- Build shared extensions with Tcl headers and the stub archive alone.
+- Match Tcl 8.6/9.0 stub initialization and add a check for direct Tcl symbol references.
+- Support Tcl include/library directory hints; keep full-runtime linking in embedding tests only.
+
 ## 0.1.0 — 2026-11-04
 
 - Add a static C string trie and a Tcl 8.6/9.x extension.
