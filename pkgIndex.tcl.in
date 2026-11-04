@@ -1,0 +1,2 @@
+if {![package vsatisfies [package provide Tcl] @TTRIE_TCL_REQUIREMENT@]} {return}
+package ifneeded ttrie @PROJECT_VERSION@ @TTRIE_LOAD@
