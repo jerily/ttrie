@@ -12,7 +12,7 @@ String trie with exact lookup and fuzzy search for C and Tcl.
 ## Tcl
 
 ```tcl
-package require ttrie 0.1.0
+package require ttrie 0.1.1
 set trie [::ttrie::create names {tcl tclx tk}]
 $trie search tcl
 # {name tcl distance 0} {name tclx distance 1} {name tk distance 2}
@@ -40,8 +40,15 @@ ctest --test-dir build --output-on-failure
 cmake --install build --prefix /your/prefix
 ```
 
-Use `-DTCL_INCLUDE_PATH=...`, `-DTCL_LIBRARY=...`, `-DTCL_STUB_LIBRARY=...` and
-`-DTCL_TCLSH=...` to select a Tcl installation. `-DTTRIE_BUILD_TCL=OFF` builds only
+Shared builds define `USE_TCL_STUBS`, link only the Tcl stub archive, and call
+`Tcl_InitStubs` for Tcl 8.6 or 9.0 according to the headers' major version. They
+do not require or link the full Tcl runtime library. Static wrappers use the
+embedding application's Tcl runtime, as in tjson.
+
+Use `-DTCL_INCLUDE_PATH=...`, `-DTCL_STUB_LIBRARY=...` and `-DTCL_TCLSH=...` to
+select a Tcl installation, or use `TCL_INCLUDE_DIR`/`TCL_LIBRARY_DIR` as search
+hints. `TCL_LIBRARY` is needed only for static embedding tests.
+`-DTTRIE_BUILD_TCL=OFF` builds only
 the static C library; `-DBUILD_SHARED_LIBS=OFF` also makes the Tcl wrapper static
 for embedding. Register `Ttrie_Init` with `Tcl_StaticLibrary` (Tcl 9) or
 `Tcl_StaticPackage` (Tcl 8.6), under `Ttrie`, before loading a static package.

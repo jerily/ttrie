@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(ttrie VERSION 0.1.0 LANGUAGES C)
+project(ttrie VERSION 0.1.1 LANGUAGES C)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
@@ -31,7 +31,8 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ttrieConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/ttrieConfigVersion.cmake DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ttrie)
 
 if(TTRIE_BUILD_TCL)
-    find_path(TCL_INCLUDE_PATH NAMES tcl.h PATH_SUFFIXES tcl9.1 tcl9.0 tcl8.6 tcl REQUIRED)
+    find_path(TCL_INCLUDE_PATH NAMES tcl.h HINTS ${TCL_INCLUDE_DIR}
+        PATH_SUFFIXES tcl9.1 tcl9.0 tcl8.6 tcl REQUIRED)
     file(STRINGS "${TCL_INCLUDE_PATH}/tcl.h" TCL_VERSION_LINE REGEX "^#[ \t]*define TCL_VERSION[ \t]+\"")
     string(REGEX MATCH "[0-9]+\\.[0-9]+" TTRIE_TCL_VERSION "${TCL_VERSION_LINE}")
     if(TTRIE_TCL_VERSION VERSION_LESS 8.6 OR NOT TTRIE_TCL_VERSION VERSION_LESS 10)
@@ -42,7 +43,6 @@ if(TTRIE_BUILD_TCL)
     else()
         set(TTRIE_TCL_REQUIREMENT "9.0-10")
     endif()
-    find_library(TCL_LIBRARY NAMES tcl${TTRIE_TCL_VERSION} HINTS "${TCL_INCLUDE_PATH}/../lib" REQUIRED)
     find_program(TCL_TCLSH NAMES tclsh${TTRIE_TCL_VERSION} HINTS "${TCL_INCLUDE_PATH}/../bin")
     add_library(ttrie src/ttrie_tcl.c)
     target_include_directories(ttrie PRIVATE ${TCL_INCLUDE_PATH})
@@ -52,12 +52,14 @@ if(TTRIE_BUILD_TCL)
         target_compile_options(ttrie PRIVATE -Wall -Wextra -Wpedantic)
     endif()
     if(BUILD_SHARED_LIBS)
-        find_library(TCL_STUB_LIBRARY NAMES tclstub${TTRIE_TCL_VERSION} tclstub
-            HINTS "${TCL_INCLUDE_PATH}/../lib" REQUIRED)
+        string(REPLACE "." "" TTRIE_TCL_COMPACT_VERSION "${TTRIE_TCL_VERSION}")
+        find_library(TCL_STUB_LIBRARY NAMES tclstub${TTRIE_TCL_VERSION} tclstub${TTRIE_TCL_COMPACT_VERSION} tclstub
+            HINTS ${TCL_LIBRARY_DIR} "${TCL_INCLUDE_PATH}/../lib" REQUIRED)
         target_compile_definitions(ttrie PRIVATE USE_TCL_STUBS)
         target_link_libraries(ttrie PRIVATE ${TCL_STUB_LIBRARY})
         set(TTRIE_LOAD "[list load [file join $dir ${CMAKE_SHARED_LIBRARY_PREFIX}ttrie${CMAKE_SHARED_LIBRARY_SUFFIX}] Ttrie]")
     else()
+        target_compile_definitions(ttrie PRIVATE STATIC_BUILD)
         set(TTRIE_LOAD "[list load {} Ttrie]")
     endif()
     configure_file(pkgIndex.tcl.in pkgIndex.tcl @ONLY)
@@ -79,7 +81,15 @@ if(BUILD_TESTING)
                 message(FATAL_ERROR "Tcl shell is required for tests")
             endif()
             set(TTRIE_TEST_SHELL "${TCL_TCLSH}")
+            if(UNIX AND CMAKE_NM)
+                add_test(NAME tcl_stubs COMMAND ${CMAKE_COMMAND}
+                    -DNM=${CMAKE_NM} -DMODULE=$<TARGET_FILE:ttrie>
+                    -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/stubs.cmake)
+            endif()
         else()
+            # Only the embedding test executable needs the full Tcl runtime.
+            find_library(TCL_LIBRARY NAMES tcl${TTRIE_TCL_VERSION}
+                HINTS ${TCL_LIBRARY_DIR} "${TCL_INCLUDE_PATH}/../lib" REQUIRED)
             add_executable(test_embed tests/embed.c)
             target_include_directories(test_embed PRIVATE ${TCL_INCLUDE_PATH})
             target_link_libraries(test_embed PRIVATE ttrie ttrie_core ${TCL_LIBRARY})
