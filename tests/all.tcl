@@ -71,7 +71,9 @@ proc distance {a b} {
 }
 test reference-1 {Exhaustive insertions, deletions, substitutions and pruning} -body {
     set keys [lsort [words {} 3]]
-    ::ttrie::create names [lreverse $keys]
+    ::ttrie::create original [lreverse $keys]
+    ::ttrie::load names [original serialize]
+    original destroy
     foreach query [words {} 4] {
         foreach limit {0 1 2} {
             set expected {}
@@ -86,6 +88,77 @@ test reference-1 {Exhaustive insertions, deletions, substitutions and pruning} -
     names destroy
     return ok
 } -result ok
+
+
+test snapshot-1 {Portable format has deterministic bytes} -body {
+    ::ttrie::create original {a}
+    set hex [binary encode hex [original serialize]]
+    original destroy
+    set hex
+} -result 545452494500010000000001016101
+
+test snapshot-2 {Binary file round trip preserves searches and survives producer destruction} -body {
+    ::ttrie::create original {tcl tk tclx a.c café}
+    set expected {}
+    foreach query {tcl web encrytion café unknown} {lappend expected [original search $query]}
+    set bytes [original serialize]
+    original destroy
+    set channel [open [file join $::tcltest::temporaryDirectory index.bin] wb]
+    puts -nonewline $channel $bytes
+    close $channel
+    set channel [open [file join $::tcltest::temporaryDirectory index.bin] rb]
+    set restored [::ttrie::load restored [read $channel]]
+    close $channel
+    file delete [file join $::tcltest::temporaryDirectory index.bin]
+    set actual {}
+    foreach query {tcl web encrytion café unknown} {lappend actual [$restored search $query]}
+    set result [list [expr {$expected eq $actual}] [expr {$bytes eq [$restored serialize]}]]
+    $restored destroy
+    set result
+} -result {1 1}
+
+test snapshot-3 {Invalid data and command collisions do not publish or replace commands} -body {
+    ::ttrie::create original {a}
+    set bytes [original serialize]
+    set rejected {}
+    foreach invalid [list {} [string range $bytes 0 5] [string range $bytes 0 end-1] \
+            [string replace $bytes 6 6 [binary format c 2]] $bytes\x00] {
+        lappend rejected [catch {::ttrie::load bad $invalid}]
+    }
+    lappend rejected [catch {::ttrie::load original $bytes}] \
+        [catch {original serialize extra}] [expr {[info commands bad] eq {}}]
+    original destroy
+    lsort -unique $rejected
+} -result 1
+
+test snapshot-4 {Empty indexes round trip} -body {
+    ::ttrie::create original {}
+    ::ttrie::load restored [original serialize]
+    set result [restored search web]
+    original destroy
+    restored destroy
+    set result
+} -result {}
+
+test snapshot-5 {Loaded tries support further insertion} -body {
+    ::ttrie::create original {abc}
+    ::ttrie::load restored [original serialize]
+    restored insert abd
+    set result [list [restored contains abc] [restored contains abd] [original contains abd]]
+    original destroy
+    restored destroy
+    set result
+} -result {1 1 0}
+
+test snapshot-boundary {Maximum input length survives serialization} -body {
+    set value [string repeat a 255]
+    ::ttrie::create original [list $value]
+    ::ttrie::load restored [original serialize]
+    set result [restored contains $value]
+    original destroy
+    restored destroy
+    set result
+} -result 1
 
 set failed $::tcltest::numTests(Failed)
 ::tcltest::cleanupTests
