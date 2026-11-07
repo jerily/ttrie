@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(ttrie VERSION 0.1.1 LANGUAGES C)
+project(ttrie VERSION 0.2.0 LANGUAGES C)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)

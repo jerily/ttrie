@@ -1,6 +1,8 @@
 #ifndef TTRIE_H
 #define TTRIE_H
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -14,6 +16,11 @@ typedef int (*ttrie_visitor)(const char *key, int distance, void *context);
 
 ttrie *ttrie_create(void);
 void ttrie_destroy(ttrie *trie);
+/* Versioned, portable node snapshot. Caller frees the serialized buffer with
+ * free(). Load restores nodes directly. NULL means invalid input or allocation
+ * failure; length is set to zero when serialization fails. */
+unsigned char *ttrie_serialize(const ttrie *trie, size_t *length);
+ttrie *ttrie_load(const void *bytes, size_t length);
 /* Nonempty, NUL-terminated byte strings of at most TTRIE_MAX_LENGTH bytes. */
 int ttrie_insert(ttrie *trie, const char *key);
 int ttrie_contains(const ttrie *trie, const char *key);

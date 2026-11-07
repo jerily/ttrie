@@ -1,5 +1,10 @@
 # Release notes
 
+## 0.2.0 — 2026-11-07
+
+- Add portable binary snapshots and direct C/Tcl loading of built indexes.
+- Validate snapshot structure before installing commands.
+
 ## 0.1.1 — 2026-11-04
 
 - Build shared extensions with Tcl headers and the stub archive alone.

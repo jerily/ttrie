@@ -12,7 +12,7 @@ String trie with exact lookup and fuzzy search for C and Tcl.
 ## Tcl
 
 ```tcl
-package require ttrie 0.1.1
+package require ttrie 0.2.0
 set trie [::ttrie::create names {tcl tclx tk}]
 $trie search tcl
 # {name tcl distance 0} {name tclx distance 1} {name tk distance 2}
@@ -86,3 +86,22 @@ validates all initial keys before installing the command.
 
 ### Pending
 Callers set index-size and request-rate limits for their own workloads.
+
+## Index snapshots
+
+`$trie serialize` returns a binary Tcl byte array.
+`::ttrie::load command_name bytes` restores a new command directly from the
+snapshot, rejecting existing commands and malformed or unknown-format data.
+Read and write snapshots with binary channels (`open path wb` / `open path rb`).
+The caller owns file IO; loading never evaluates Tcl or rebuilds the index.
+
+The C API exposes `ttrie_serialize` and `ttrie_load`; free serialized buffers
+with `free()`. Serialization is deterministic. Format version 1 uses explicit
+bytes, independent of pointer size, alignment and host byte order. Tcl snapshots
+are limited to INT_MAX bytes.
+The eight-byte header is `54 54 52 49 45 00 01 00`, followed by a big-endian
+32-bit node count (at most UINT32_MAX). Each following
+three-byte record is depth (1–255), key byte, and terminal flag (0/1), in
+preorder with siblings sorted by unsigned byte. Empty tries have zero nodes.
+Loading validates the count, depth transitions, byte ordering and flags before
+publishing the command; subsequent insertions work normally.
